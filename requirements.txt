@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+pydantic
+python-dotenv
+pyodbc 
+authlib 
+itsdangerous
+python-jose[cryptography]
+httpx
+pymongo[srv]
+motor
+langchain-anthropic

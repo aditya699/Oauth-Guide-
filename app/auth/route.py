@@ -17,7 +17,10 @@ router = APIRouter()
 @router.get("/login")
 async def login(request: Request):
       # Check if user is already logged in
+    print(request)
     if request.session.get('user'):
+        print("User already logged in")
+        print("Here is the user info: ", request.session.get('user'))
         return RedirectResponse(url="/")  # Redirect to home if already logged in
     query_params = {
         "client_id": MICROSOFT_CONFIG["client_id"],
@@ -26,6 +29,7 @@ async def login(request: Request):
         "scope": " ".join(MICROSOFT_CONFIG["scopes"]),
     }
     auth_url = f"{MICROSOFT_CONFIG['authorize_endpoint']}?{urlencode(query_params)}"
+    # Redirect to the Microsoft login page
     return RedirectResponse(url=auth_url)
 
 @router.get("/callback")
@@ -57,10 +61,13 @@ async def auth_callback(request: Request, code: str):
         user_info = user_response.json()
 
         # 3. Store user info in session
+        # This is a magic of FastAPI session management behind the scene fast api is using cookies to store the session data
         request.session['user'] = {
             "email": user_info.get("mail") or user_info.get("userPrincipalName"),
             "name": user_info.get("displayName")
         }
+
+        
         
         # 4. Redirect to main chat page
         return RedirectResponse(url="/")

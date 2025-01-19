@@ -74,3 +74,15 @@ async def auth_callback(request: Request, code: str):
 
     except requests.RequestException as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+
+@router.get("/logout")
+async def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/", status_code=303)
+
+@router.get("/check-session")
+async def check_session(request: Request):
+    if not request.session.get("user"):
+        raise HTTPException(status_code=401, detail="Session expired")
+    return {"status": "active"}

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatBot</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-white shadow">
+            <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+                <h1 class="text-xl font-semibold">ChatBot</h1>
+                <div class="flex items-center gap-4">
+                    <span class="text-gray-600">Welcome, {{ user.name }}</span>
+                    <a href="/auth/logout" class="text-red-500 hover:text-red-600">Logout</a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Chat Container -->
+        <div class="flex-1 max-w-7xl mx-auto w-full p-4 flex flex-col">
+            <!-- Messages Area -->
+            <div id="messages" class="flex-1 bg-white rounded-lg shadow p-4 mb-4 overflow-y-auto min-h-[500px]">
+                <!-- Messages will be inserted here -->
+            </div>
+
+            <!-- Input Area -->
+            <div class="bg-white rounded-lg shadow p-4">
+                <form id="chat-form" class="flex gap-4">
+                    <input 
+                        type="text" 
+                        id="message-input"
+                        class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Type your message..."
+                        required
+                    >
+                    <button 
+                        type="submit"
+                        class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                        Send
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Expired Modal -->
+    <div id="session-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-xl">
+            <h2 class="text-xl font-bold mb-4">Session Expired</h2>
+            <p class="mb-4">Your session has expired. Please login again.</p>
+            <button onclick="window.location.href='/'" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Login Again
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const messagesContainer = document.getElementById('messages');
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+        const sessionModal = document.getElementById('session-modal');
+
+        // Function to show session expired modal
+        function showSessionExpiredModal() {
+            sessionModal.classList.remove('hidden');
+        }
+
+        // Function to handle unauthorized/session expired
+        function handleSessionExpired() {
+            showSessionExpiredModal();
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 2000);  // Redirect after 2 seconds
+        }
+
+        function appendMessage(message, isUser = false) {
+            const div = document.createElement('div');
+            div.className = `mb-4 ${isUser ? 'text-right' : ''}`;
+            div.innerHTML = `
+                <div class="inline-block rounded-lg px-4 py-2 max-w-[70%] ${
+                    isUser ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-800'
+                }">
+                    ${message}
+                </div>
+            `;
+            messagesContainer.appendChild(div);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Add user message to chat
+            appendMessage(message, true);
+            messageInput.value = '';
+
+            try {
+                const response = await fetch('/chat/get_chat_response', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message }),
+                });
+
+                if (response.status === 401) {
+                    handleSessionExpired();
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+                if (data.response) {
+                    appendMessage(data.response);
+                } else if (data.error) {
+                    appendMessage('Sorry, there was an error processing your message.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                appendMessage('Sorry, there was an error processing your message.');
+            }
+        });
+
+        // Periodic session check (every minute)
+        async function checkSession() {
+            try {
+                const response = await fetch('/auth/check-session');
+                if (response.status === 401) {
+                    handleSessionExpired();
+                }
+            } catch (error) {
+                console.error('Session check error:', error);
+            }
+        }
+
+        // Check session every minute
+        setInterval(checkSession, 60000);
+    </script>
+</body>
+</html>
